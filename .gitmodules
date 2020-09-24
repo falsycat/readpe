@@ -1,0 +1,3 @@
+[submodule "thirdparty/parsarg-c"]
+	path = thirdparty/parsarg-c
+	url = https://github.com/c4tf00t/parsarg-c.git
