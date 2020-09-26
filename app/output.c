@@ -268,7 +268,7 @@ static void readpe_output_optional_header32_(
       header->base_of_code);
   printfln("base of data              : 0x%08"PRIX32" RVA",
       header->base_of_data);
-  printfln("image base                : 0x%08"PRIX32" RVA",
+  printfln("image base                : 0x%08"PRIX32,
       header->image_base);
   printfln("section alignment         : 0x%08"PRIX32" = %"PRIu32,
       header->section_alignment, header->section_alignment);
@@ -358,7 +358,7 @@ static void readpe_output_optional_header64_(
       header->address_of_entrypoint);
   printfln("base of code              : 0x%08"PRIX32" RVA",
       header->base_of_code);
-  printfln("image base                : 0x%016"PRIX64" RVA",
+  printfln("image base                : 0x%016"PRIX64,
       header->image_base);
   printfln("section alignment         : 0x%08"PRIX32" = %"PRIu32,
       header->section_alignment, header->section_alignment);
