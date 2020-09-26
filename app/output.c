@@ -135,6 +135,43 @@ static const char* readpe_output_stringify_optional_subsystem_(uint16_t subsys) 
   }
 }
 
+static const char* readpe_output_stringify_data_directory_entry_(size_t i) {
+  switch (i) {
+  case PE_IMAGE_DIRECTORY_ENTRY_EXPORT:
+    return "export table";
+  case PE_IMAGE_DIRECTORY_ENTRY_IMPORT:
+    return "import table";
+  case PE_IMAGE_DIRECTORY_ENTRY_RESOURCE:
+    return "resource table";
+  case PE_IMAGE_DIRECTORY_ENTRY_EXCEPTION:
+    return "exception table";
+  case PE_IMAGE_DIRECTORY_ENTRY_SECURITY:
+    return "certificate table";
+  case PE_IMAGE_DIRECTORY_ENTRY_BASERELOC:
+    return "base relocation table";
+  case PE_IMAGE_DIRECTORY_ENTRY_DEBUG:
+    return "debug";
+  case PE_IMAGE_DIRECTORY_ENTRY_ARCHITECTURE:
+    return "architecture data";
+  case PE_IMAGE_DIRECTORY_ENTRY_GLOBALPTR:
+    return "global pointer";
+  case PE_IMAGE_DIRECTORY_ENTRY_TLS:
+    return "TLS table";
+  case PE_IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG:
+    return "load config table";
+  case PE_IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT:
+    return "bound import";
+  case PE_IMAGE_DIRECTORY_ENTRY_IAT:
+    return "import address table";
+  case PE_IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT:
+    return "delay import descriptor";
+  case PE_IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR:
+    return "CLR runtime header";
+  default:
+    return "unknown";
+  }
+}
+
 static void readpe_output_image_file_header_(
     const pe_image_file_header_t* header) {
   assert(header != NULL);
@@ -191,6 +228,22 @@ static void readpe_output_image_file_header_(
 # undef p
 
   readpe_output_end_group_();
+}
+
+static void readpe_output_data_directories_(
+    const pe_image_data_directory_t* dirs, size_t len) {
+  assert(dirs != NULL || len == 0);
+
+  printfln("data directories: %s", "");
+  for (size_t i = 0; i < len; ++i) {
+    printfln("  %02zu: %s",
+        i, readpe_output_stringify_data_directory_entry_(i));
+
+    printfln("    virtual address: 0x%08"PRIX32" RVA",
+        dirs[i].virtual_address);
+    printfln("    size           : 0x%08"PRIX32" = %"PRId32,
+        dirs[i].size, dirs[i].size);
+  }
 }
 
 static void readpe_output_optional_header32_(
@@ -279,7 +332,8 @@ static void readpe_output_optional_header32_(
   printfln("number of RVA and sizes   : %"PRId32,
       header->number_of_rva_and_sizes);
 
-  /* TODO(catfoot): print data directory */
+  readpe_output_data_directories_(
+      header->data_directory, header->number_of_rva_and_sizes);
 
   readpe_output_end_group_();
 }
@@ -368,7 +422,8 @@ static void readpe_output_optional_header64_(
   printfln("number of RVA and sizes   : %"PRId32,
       header->number_of_rva_and_sizes);
 
-  /* TODO(catfoot): print data directory */
+  readpe_output_data_directories_(
+      header->data_directory, header->number_of_rva_and_sizes);
 
   readpe_output_end_group_();
 }
@@ -397,7 +452,7 @@ void readpe_output_dos_stub(const uint8_t* body, size_t len) {
 void readpe_output_nt_header32(const pe32_nt_header_t* header) {
   assert(header != NULL);
 
-  readpe_output_begin_group_("NT HEADER (32 bit)");
+  readpe_output_begin_group_("NT HEADER 32-bit");
 
   printfln("signature: %s (0x%04"PRIX16")",
       readpe_output_stringify_image_signature_(header->signature),
@@ -413,7 +468,7 @@ void readpe_output_nt_header32(const pe32_nt_header_t* header) {
 void readpe_output_nt_header64(const pe64_nt_header_t* header) {
   assert(header != NULL);
 
-  readpe_output_begin_group_("NT HEADER (64 bit)");
+  readpe_output_begin_group_("NT HEADER 64-bit");
 
   printfln("signature: %s (0x%04"PRIX16")",
       readpe_output_stringify_image_signature_(header->signature),
