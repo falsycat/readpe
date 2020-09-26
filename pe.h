@@ -156,7 +156,7 @@ typedef struct pe64_image_optional_header_t {
   uint32_t size_of_code;
   uint32_t size_of_initialized_data;
   uint32_t size_of_uninitialized_data;
-  uint32_t address_of_entry_point;
+  uint32_t address_of_entrypoint;
   uint32_t base_of_code;
   uint64_t image_base;
   uint32_t section_alignment;
@@ -167,10 +167,10 @@ typedef struct pe64_image_optional_header_t {
   uint16_t minor_image_version;
   uint16_t major_subsystem_version;
   uint16_t minor_subsystem_version;
-  uint32_t win32Version_value;
+  uint32_t win32_version_value;
   uint32_t size_of_image;
   uint32_t size_of_headers;
-  uint32_t check_sum;
+  uint32_t checksum;
 
   uint16_t subsystem;
   /* PE_IMAGE_SUBSYSTEM_* */
