@@ -42,32 +42,43 @@ static bool readpe_read_and_output_(const readpe_args_t* args, FILE* fp) {
     readpe_output_dos_stub(dos_stub, sizeof(dos_stub));
   }
 
-  uint8_t nt_header[MAX(sizeof(pe32_nt_header_t), sizeof(pe64_nt_header_t))];
+  uint8_t nt_header[
+      MAX(sizeof(pe32_nt_header_t), sizeof(pe64_nt_header_t))] = {0};
   fseek(fp, dos_header.e_lfanew, SEEK_SET);
   if (fread(&nt_header, offsetof(pe32_nt_header_t, optional), 1, fp) != 1) {
     fprintf(stderr, "fread failed while reading signature and file header\n");
     return false;
   }
 
-  const uint32_t signature = ((pe32_nt_header_t*) nt_header)->signature;
-  if (signature != PE_IMAGE_SIGNATURE_NT) {
+  pe32_nt_header_t* nt_header32 = (typeof(nt_header32)) nt_header;
+  pe64_nt_header_t* nt_header64 = (typeof(nt_header64)) nt_header;
+
+  if (nt_header32->signature != PE_IMAGE_SIGNATURE_NT) {
     fprintf(stderr,
         "image signature in nt header is 0x%08"PRIX32", "
         "but expected 0x%08"PRIX32"\n",
-        signature,
+        nt_header32->signature,
         PE_IMAGE_SIGNATURE_NT);
     return false;
+  }
+
+  if (nt_header32->file.size_of_optional_header > 0) {
+    if (fread(&nt_header32->optional,
+          nt_header32->file.size_of_optional_header, 1, fp) != 1) {
+      fprintf(stderr, "fread failed while reading optional header\n");
+      return false;
+    }
   }
 
   const uint16_t machine = ((pe32_nt_header_t*) nt_header)->file.machine;
   switch (machine) {
   case PE_IMAGE_FILE_MACHINE_I386:
-    /* TODO(catfoot): */
+    if (args->nt_header) readpe_output_nt_header32(nt_header32);
     break;
 
   case PE_IMAGE_FILE_MACHINE_IA64:
   case PE_IMAGE_FILE_MACHINE_AMD64:
-    /* TODO(catfoot): */
+    if (args->nt_header) readpe_output_nt_header64(nt_header64);
     break;
 
   default:

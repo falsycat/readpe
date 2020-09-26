@@ -32,7 +32,7 @@ typedef struct pe_image_file_header_t {
 # define PE_IMAGE_FILE_HEADER_SIZE 20
 
   uint16_t machine;
-# define PE_IMAGE_FILE_MACHINE_I386  0x014c
+# define PE_IMAGE_FILE_MACHINE_I386  0x014C
 # define PE_IMAGE_FILE_MACHINE_IA64  0x0200
 # define PE_IMAGE_FILE_MACHINE_AMD64 0x8664
 
