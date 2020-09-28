@@ -189,21 +189,70 @@ typedef struct pe64_image_optional_header_t {
   /* PE_IMAGE_DATA_DIRECTORY_ENTRY_* */
 } pe64_image_optional_header_t;
 
-typedef struct pe32_nt_header_t {
+typedef union pe_image_optional_header_t {
+  pe32_image_optional_header_t _32bit;
+  pe64_image_optional_header_t _64bit;
+} pe_image_optional_header_t;
+
+typedef struct pe_nt_header_t {
   uint32_t signature;
 # define PE_IMAGE_SIGNATURE_DOS    0x5A4D      /* MZ */
 # define PE_IMAGE_SIGNATURE_OS2    0x454E      /* NE */
 # define PE_IMAGE_SIGNATURE_OS2_LE 0x454C      /* LE */
 # define PE_IMAGE_SIGNATURE_NT     0x00004550  /* PE */
 
-  pe_image_file_header_t       file;
-  pe32_image_optional_header_t optional;
-} pe32_nt_header_t;
+  pe_image_file_header_t     file;
+  pe_image_optional_header_t optional;
+} pe_nt_header_t;
 
-typedef struct pe64_nt_header_t {
-  uint32_t signature;
-  /* PE_IMAGE_SIGNATURE_* */
+typedef struct pe_image_section_header_t {
+# define PE_IMAGE_SECTION_HEADER_SIZE 40
 
-  pe_image_file_header_t       file;
-  pe64_image_optional_header_t optional;
-} pe64_nt_header_t;
+# define PE_IMAGE_SECTION_NAME_SIZE 8
+  uint8_t name[PE_IMAGE_SECTION_NAME_SIZE];
+
+  union {
+    uint32_t physical_address;
+    uint32_t virtual_size;
+  } misc;
+
+  uint32_t virtual_address;
+  uint32_t size_of_rawdate;
+  uint32_t pointer_to_raw_data;
+  uint32_t pointer_to_relocations;
+  uint32_t pointer_to_linenumbers;
+  uint16_t number_of_relocations;
+  uint16_t number_of_linenumbers;
+
+  uint32_t characteristics;
+# define PE_IMAGE_SECTION_CONTAINS_CODE               0x00000020
+# define PE_IMAGE_SECTION_CONTAINS_INITIALIZED_DATA   0x00000040
+# define PE_IMAGE_SECTION_CONTAINS_UNINITIALIZED_DATA 0x00000080
+# define PE_IMAGE_SECTION_LINK_INFO                   0x00000200
+# define PE_IMAGE_SECTION_LINK_REMOVE                 0x00000800
+# define PE_IMAGE_SECTION_LINK_COMDAT                 0x00001000
+# define PE_IMAGE_SECTION_NO_DEFER_SPEC_EXC           0x00004000
+# define PE_IMAGE_SECTION_GPREL                       0x00008000
+# define PE_IMAGE_SECTION_ALIGN_1BYTES                0x00100000
+# define PE_IMAGE_SECTION_ALIGN_2BYTES                0x00200000
+# define PE_IMAGE_SECTION_ALIGN_4BYTES                0x00300000
+# define PE_IMAGE_SECTION_ALIGN_8BYTES                0x00400000
+# define PE_IMAGE_SECTION_ALIGN_16BYTES               0x00500000
+# define PE_IMAGE_SECTION_ALIGN_32BYTES               0x00600000
+# define PE_IMAGE_SECTION_ALIGN_64BYTES               0x00700000
+# define PE_IMAGE_SECTION_ALIGN_128BYTES              0x00800000
+# define PE_IMAGE_SECTION_ALIGN_256BYTES              0x00900000
+# define PE_IMAGE_SECTION_ALIGN_512BYTES              0x00A00000
+# define PE_IMAGE_SECTION_ALIGN_1024BYTES             0x00B00000
+# define PE_IMAGE_SECTION_ALIGN_2048BYTES             0x00C00000
+# define PE_IMAGE_SECTION_ALIGN_4096BYTES             0x00D00000
+# define PE_IMAGE_SECTION_ALIGN_8192BYTES             0x00E00000
+# define PE_IMAGE_SECTION_LINK_NRELOC_OVERFLOW        0x01000000
+# define PE_IMAGE_SECTION_MEMORY_DISCARDABLE          0x02000000
+# define PE_IMAGE_SECTION_MEMORY_NOT_CACHED           0x04000000
+# define PE_IMAGE_SECTION_MEMORY_NOT_PAGED            0x08000000
+# define PE_IMAGE_SECTION_MEMORY_SHARED               0x10000000
+# define PE_IMAGE_SECTION_MEMORY_EXECUTE              0x20000000
+# define PE_IMAGE_SECTION_MEMORY_READ                 0x40000000
+# define PE_IMAGE_SECTION_MEMORY_WRITE                0x80000000
+} pe_image_section_header_t;
