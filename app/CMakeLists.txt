@@ -1,5 +1,6 @@
 add_executable(readpe
     args.c
+    context.c
     main.c
     output.c
 )

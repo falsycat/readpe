@@ -449,10 +449,10 @@ void readpe_output_dos_stub(const uint8_t* body, size_t len) {
   readpe_output_end_group_();
 }
 
-void readpe_output_nt_header32(const pe32_nt_header_t* header) {
+void readpe_output_nt_header(const pe_nt_header_t* header) {
   assert(header != NULL);
 
-  readpe_output_begin_group_("NT HEADER 32-bit");
+  readpe_output_begin_group_("NT HEADER");
 
   printfln("signature: %s (0x%04"PRIX16")",
       readpe_output_stringify_image_signature_(header->signature),
@@ -460,23 +460,15 @@ void readpe_output_nt_header32(const pe32_nt_header_t* header) {
 
   readpe_output_image_file_header_(&header->file);
 
-  readpe_output_optional_header32_(&header->optional);
-
-  readpe_output_end_group_();
-}
-
-void readpe_output_nt_header64(const pe64_nt_header_t* header) {
-  assert(header != NULL);
-
-  readpe_output_begin_group_("NT HEADER 64-bit");
-
-  printfln("signature: %s (0x%04"PRIX16")",
-      readpe_output_stringify_image_signature_(header->signature),
-      header->signature & 0xFFFF);
-
-  readpe_output_image_file_header_(&header->file);
-
-  readpe_output_optional_header64_(&header->optional);
+  switch (header->file.machine) {
+  case PE_IMAGE_FILE_MACHINE_I386:
+    readpe_output_optional_header32_(&header->optional._32bit);
+    break;
+  case PE_IMAGE_FILE_MACHINE_AMD64:
+  case PE_IMAGE_FILE_MACHINE_IA64:
+    readpe_output_optional_header64_(&header->optional._64bit);
+    break;
+  }
 
   readpe_output_end_group_();
 }
