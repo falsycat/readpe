@@ -20,3 +20,9 @@ void
 readpe_output_nt_header(
     const pe_nt_header_t* header
 );
+
+void
+readpe_output_section_table(
+    const pe_image_section_header_t* table,
+    size_t                           rows
+);

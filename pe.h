@@ -217,7 +217,7 @@ typedef struct pe_image_section_header_t {
   } misc;
 
   uint32_t virtual_address;
-  uint32_t size_of_rawdate;
+  uint32_t size_of_raw_data;
   uint32_t pointer_to_raw_data;
   uint32_t pointer_to_relocations;
   uint32_t pointer_to_linenumbers;

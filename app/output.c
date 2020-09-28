@@ -472,3 +472,129 @@ void readpe_output_nt_header(const pe_nt_header_t* header) {
 
   readpe_output_end_group_();
 }
+
+void readpe_output_section_table(
+    const pe_image_section_header_t* table, size_t rows) {
+  assert(table != NULL || rows == 0);
+
+  readpe_output_begin_group_("section table");
+
+  for (size_t i = 0; i < rows; ++i) {
+    printfln("%zu:", i);
+    printfln("  name                  : %.*s",
+        PE_IMAGE_SECTION_NAME_SIZE, table[i].name);
+    printfln("  virtual size          : 0x%08"PRIX32" = %"PRIu32,
+        table[i].misc.virtual_size, table[i].misc.virtual_size);
+    printfln("  virtual address       : 0x%08"PRIX32" RVA",
+        table[i].virtual_address);
+    printfln("  size of raw data      : 0x%08"PRIX32" = %"PRIu32,
+        table[i].size_of_raw_data, table[i].size_of_raw_data);
+    printfln("  pointer to raw data   : 0x%08"PRIX32,
+        table[i].pointer_to_raw_data);
+    printfln("  pointer to relocations: 0x%08"PRIX32,
+        table[i].pointer_to_relocations);
+    printfln("  pointer to linenumbers: 0x%08"PRIX32,
+        table[i].pointer_to_linenumbers);
+    printfln("  number of relocations : %"PRIu16,
+        table[i].number_of_relocations);
+    if (table[i].number_of_relocations == UINT16_MAX) {
+      printfln("%s",
+          "    check if PE_IMAGE_SECTION_LINK_NRELOC_OVERFLOW is "
+          "set at characteristics property");
+    }
+    printfln("  number of linenumbers : %"PRIu16,
+        table[i].number_of_linenumbers);
+
+    printfln("  characteristics: 0x%08"PRIX32, table[i].characteristics);
+#   define p(flag, desc) do {  \
+      if ((table[i].characteristics & flag) == flag) {  \
+        printfln("   - %s (0x%08"PRIX32")", #flag, flag);  \
+        printfln("       %s", desc);  \
+      }  \
+    } while (0)
+
+    p(PE_IMAGE_SECTION_CONTAINS_CODE,
+        "the section contains executable code");
+    p(PE_IMAGE_SECTION_CONTAINS_INITIALIZED_DATA,
+        "the section contains initialized data");
+    p(PE_IMAGE_SECTION_CONTAINS_UNINITIALIZED_DATA,
+        "the section contains uninitialized data");
+    p(PE_IMAGE_SECTION_LINK_INFO,
+        "the section contains comments or other information "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_LINK_REMOVE,
+        "the section will not become part of the image "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_LINK_COMDAT,
+        "the section contains COMDAT data "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_NO_DEFER_SPEC_EXC,
+        "reset speculative exceptions handling bits in "
+        "the TLB entries for this section");
+    p(PE_IMAGE_SECTION_GPREL,
+        "the section contains data referenced through the global pointer");
+    p(PE_IMAGE_SECTION_ALIGN_1BYTES,
+        "align data on a 1-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_2BYTES,
+        "align data on a 2-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_4BYTES,
+        "align data on a 4-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_8BYTES,
+        "align data on a 8-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_16BYTES,
+        "align data on a 16-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_32BYTES,
+        "align data on a 32-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_64BYTES,
+        "align data on a 64-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_128BYTES,
+        "align data on a 128-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_256BYTES,
+        "align data on a 256-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_512BYTES,
+        "align data on a 512-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_1024BYTES,
+        "align data on a 1024-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_2048BYTES,
+        "align data on a 2048-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_4096BYTES,
+        "align data on a 4096-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_ALIGN_8192BYTES,
+        "align data on a 8192-byte boundary "
+        "(only for object file)");
+    p(PE_IMAGE_SECTION_LINK_NRELOC_OVERFLOW,
+        "the section contains extended relocations"
+        "(number of relocations must be 0xfff)");
+    p(PE_IMAGE_SECTION_MEMORY_DISCARDABLE,
+        "the section can be discarded as needed");
+    p(PE_IMAGE_SECTION_MEMORY_NOT_CACHED,
+        "the section cannot be cached");
+    p(PE_IMAGE_SECTION_MEMORY_NOT_PAGED,
+        "the section cannot be paged");
+    p(PE_IMAGE_SECTION_MEMORY_SHARED,
+        "the section can be shared in memory");
+    p(PE_IMAGE_SECTION_MEMORY_EXECUTE,
+        "the section can be executed as code");
+    p(PE_IMAGE_SECTION_MEMORY_READ,
+        "the section can be read");
+    p(PE_IMAGE_SECTION_MEMORY_WRITE,
+        "the section can be written to");
+
+#   undef p
+  }
+
+  readpe_output_end_group_();
+}

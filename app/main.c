@@ -35,6 +35,9 @@ int main(int argc, char** argv) {
   if (args.nt_header) {
     readpe_output_nt_header(ctx.nt_header);
   }
+  if (args.section_table) {
+    readpe_output_section_table(ctx.sections, ctx.nt_header->file.number_of_sections);
+  }
 
   readpe_context_deinitialize(&ctx);
   return EXIT_SUCCESS;
