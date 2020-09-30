@@ -258,6 +258,8 @@ typedef struct pe_image_section_header_t {
 } pe_image_section_header_t;
 
 typedef struct pe_image_export_directory_t {
+# define PE_IMAGE_EXPORT_DIRECTORY_SIZE 40
+
   uint32_t characteristics;
   uint32_t time_date_stamp;
   uint16_t major_version;

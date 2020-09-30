@@ -26,3 +26,9 @@ readpe_output_section_table(
     const pe_image_section_header_t* table,
     size_t                           rows
 );
+
+void
+readpe_output_export_table(
+    const pe_image_export_directory_t* table,  /* NULLABLE */
+    const uint8_t*                     img
+);

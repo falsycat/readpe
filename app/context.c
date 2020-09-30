@@ -7,8 +7,25 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "pe.h"
+
+static bool readpe_context_validate_string_(
+    const readpe_context_t* ctx, size_t rva) {
+  assert(ctx != NULL);
+
+  if (rva >= ctx->image_length) {
+    return false;
+  }
+
+  const size_t mlen = ctx->image_length - rva;
+  const size_t len = strnlen((char*) (ctx->image+rva), mlen);
+  if (len == mlen && ctx->image[ctx->image_length-1] != 0) {
+    return false;
+  }
+  return true;
+}
 
 static bool readpe_context_copy_headers_on_memory_(
     readpe_context_t* ctx, FILE* fp) {
@@ -26,6 +43,11 @@ static bool readpe_context_copy_headers_on_memory_(
         "but expected 0x%04"PRIX16"\n",
         dos_header.e_magic,
         PE_DOS_MAGIC);
+    return false;
+  }
+  if (dos_header.e_lfanew < 0) {
+    fprintf(stderr,
+        "offset of nt header is negative (%"PRId32")\n", dos_header.e_lfanew);
     return false;
   }
   fseek(fp, dos_header.e_lfanew, SEEK_SET);
@@ -103,9 +125,8 @@ static bool readpe_context_copy_headers_on_memory_(
 static bool readpe_context_find_addresses_(readpe_context_t* ctx) {
   assert(ctx != NULL);
 
-  const uint8_t* image_end  = ctx->image + ctx->image_length;
   const uint8_t* header_end = ctx->image + ctx->header_length;
-  assert(header_end <= image_end);
+  assert(header_end <= ctx->image + ctx->image_length);
 
   /* ---- dos header ---- */
   ctx->dos_header = (pe_dos_header_t*) ctx->image;
@@ -137,27 +158,18 @@ static bool readpe_context_find_addresses_(readpe_context_t* ctx) {
     return false;
   }
 
-  const uint8_t* image_optional_header_end = header_end + 1;
+  /* ---- data directory ---- */
   if (ctx->_64bit) {
-    const uint8_t* number_of_rva_and_sizes_end =
-        (uint8_t*) (&ctx->nt_header->optional._64bit.number_of_rva_and_sizes+1);
-    if (number_of_rva_and_sizes_end <= header_end) {
-      image_optional_header_end =
-          (uint8_t*) &ctx->nt_header->optional._64bit.data_directory +
-          ctx->nt_header->optional._64bit.number_of_rva_and_sizes*
-          PE_IMAGE_DATA_DIRECTORY_SIZE;
-    }
+    ctx->data_directory_length =
+        ctx->nt_header->optional._64bit.number_of_rva_and_sizes;
+    ctx->data_directory = ctx->nt_header->optional._64bit.data_directory;
   } else {
-    const uint8_t* number_of_rva_and_sizes_end =
-        (uint8_t*) (&ctx->nt_header->optional._32bit.number_of_rva_and_sizes+1);
-    if (number_of_rva_and_sizes_end <= image_end) {
-      image_optional_header_end =
-          (uint8_t*) &ctx->nt_header->optional._32bit.data_directory +
-          ctx->nt_header->optional._32bit.number_of_rva_and_sizes*
-          PE_IMAGE_DATA_DIRECTORY_SIZE;
-    }
+    ctx->data_directory_length =
+        ctx->nt_header->optional._32bit.number_of_rva_and_sizes;
+    ctx->data_directory = ctx->nt_header->optional._32bit.data_directory;
   }
-  if (image_optional_header_end > header_end) {
+  if ((uint8_t*) ctx->data_directory +
+        ctx->data_directory_length*PE_IMAGE_DATA_DIRECTORY_SIZE > header_end) {
     fprintf(stderr, "invalid image optional header: ends unexpectedly\n");
     return false;
   }
@@ -189,7 +201,7 @@ static bool readpe_context_copy_sections_on_memory_(
     if (s->size_of_raw_data == 0) continue;
 
     uint8_t* ptr = ctx->image + s->virtual_address;
-    if (ptr + s->virtual_size > ctx->image) {
+    if (ptr + s->misc.virtual_size >= ctx->image + ctx->image_length) {
       fprintf(stderr, "invalid section '%.*s': larger than image size\n",
           PE_IMAGE_SECTION_NAME_SIZE, s->name);
       return false;
@@ -247,3 +259,64 @@ void readpe_context_deinitialize(readpe_context_t* ctx) {
   if (ctx->image != NULL) free(ctx->image);
 }
 
+bool readpe_context_get_export_table(
+    const readpe_context_t*             ctx,
+    const pe_image_export_directory_t** ptr) {
+  assert(ctx != NULL);
+  assert(ptr != NULL);
+
+  *ptr = NULL;
+
+  if (ctx->data_directory_length <= PE_IMAGE_DIRECTORY_ENTRY_EXPORT) {
+    return true;
+  }
+
+  const pe_image_data_directory_t* dir =
+      &ctx->data_directory[PE_IMAGE_DIRECTORY_ENTRY_EXPORT];
+  if (dir->virtual_address == 0 || dir->size == 0) return true;
+
+  *ptr = (typeof(*ptr)) (ctx->image + dir->virtual_address);
+
+  if ((uint8_t*) *ptr + PE_IMAGE_EXPORT_DIRECTORY_SIZE >=
+        ctx->image + ctx->image_length) {
+    fprintf(stderr, "invalid export table: ends unexpectedly\n");
+    return false;
+  }
+
+  if (!readpe_context_validate_string_(ctx, (*ptr)->name)) {
+    fprintf(stderr, "invalid export table: name refers out of image\n");
+    return false;
+  }
+
+  if ((*ptr)->address_of_functions +
+        (*ptr)->number_of_functions*sizeof(uint32_t) >= ctx->image_length) {
+    fprintf(stderr,
+        "invalid export table: "
+        "address_of_functions refers out of image\n");
+    return false;
+  }
+  if ((*ptr)->address_of_names +
+        (*ptr)->number_of_names*sizeof(uint32_t) >= ctx->image_length) {
+    fprintf(stderr,
+        "invalid export table: "
+        "address_of_names refers out of image\n");
+    return false;
+  }
+  if ((*ptr)->address_of_name_ordinals +
+        (*ptr)->number_of_names*sizeof(uint16_t) >= ctx->image_length) {
+    fprintf(stderr,
+        "invalid export table: "
+        "address_of_name_ordinals refers out of image\n");
+    return false;
+  }
+
+  const uint32_t* names = (uint32_t*) ((*ptr)->address_of_names + ctx->image);
+  for (size_t i = 0; i < (*ptr)->number_of_names; ++i) {
+    if (!readpe_context_validate_string_(ctx, names[i])) {
+      fprintf(stderr,
+          "invalid export table: one of the names ends unexpectedly\n");
+      return false;
+    }
+  }
+  return true;
+}

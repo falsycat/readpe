@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #include "pe.h"
@@ -594,6 +595,50 @@ void readpe_output_section_table(
         "the section can be written to");
 
 #   undef p
+  }
+
+  readpe_output_end_group_();
+}
+
+void readpe_output_export_table(
+    const pe_image_export_directory_t* table, const uint8_t* img) {
+  assert(img != NULL);
+
+  readpe_output_begin_group_("export table");
+
+  if (table == NULL) {
+    printfln("%s", "no export table found");
+    return;
+  }
+
+  const uint32_t* addrs = (uint32_t*) (img + table->address_of_functions);
+  const uint32_t* names = (uint32_t*) (img + table->address_of_names);
+  const uint16_t* ordis = (uint16_t*) (img + table->address_of_name_ordinals);
+
+  size_t longest = 0;
+  for (size_t i = 0; i < table->number_of_names; ++i) {
+    const size_t len = strlen((char*) &img[names[i]]);
+    if (len > longest) longest = len;
+  }
+
+  for (size_t i = 0; i < table->number_of_functions; ++i) {
+    const char* name    = "[anonymous function]";
+    int32_t     ordinal = -1;
+
+    for (size_t j = 0; j < table->number_of_names; ++j) {
+      if (ordis[j] == i) {
+        name    = (char*) &img[names[j]];
+        ordinal = ordis[j] + table->base;
+        break;
+      }
+    }
+    /* TODO(catfoot): check if forwarded */
+    printfln(
+        "%-*s@%-10"PRId32" 0x%08"PRIX32,
+        (int) longest,
+        name,
+        ordinal,
+        addrs[i]);
   }
 
   readpe_output_end_group_();
