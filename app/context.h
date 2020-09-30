@@ -11,6 +11,7 @@ typedef struct {
 
   uint8_t* image;
   size_t   image_length;
+  size_t   header_length;
 
   pe_dos_header_t* dos_header;
 

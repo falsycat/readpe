@@ -10,7 +10,7 @@
 
 #include "pe.h"
 
-static bool readpe_context_copy_image_on_memory_(
+static bool readpe_context_copy_headers_on_memory_(
     readpe_context_t* ctx, FILE* fp) {
   assert(ctx != NULL);
   assert(fp  != NULL);
@@ -56,12 +56,14 @@ static bool readpe_context_copy_image_on_memory_(
 
   switch (nt_header.file.machine) {
   case PE_IMAGE_FILE_MACHINE_I386:
-    ctx->image_length = nt_header.optional._32bit.size_of_image;
+    ctx->image_length  = nt_header.optional._32bit.size_of_image;
+    ctx->header_length = nt_header.optional._32bit.size_of_headers;
     break;
   case PE_IMAGE_FILE_MACHINE_AMD64:
   case PE_IMAGE_FILE_MACHINE_IA64:
     ctx->_64bit = true;
-    ctx->image_length = nt_header.optional._64bit.size_of_image;
+    ctx->image_length  = nt_header.optional._64bit.size_of_image;
+    ctx->header_length = nt_header.optional._64bit.size_of_headers;
     break;
   default:
     fprintf(stderr,
@@ -73,11 +75,26 @@ static bool readpe_context_copy_image_on_memory_(
     fprintf(stderr, "invalid image optional header: size_of_image is 0\n");
     return false;
   }
+  if (ctx->header_length == 0) {
+    fprintf(stderr, "invalid image optional header: size_of_headers is 0\n");
+    return false;
+  }
+  if (ctx->header_length > ctx->image_length) {
+    fprintf(stderr,
+        "invalid image optional header: "
+        "size_of_headers is larger than size_of_image\n");
+    return false;
+  }
 
-  ctx->image = malloc(ctx->image_length);
+  ctx->image = calloc(ctx->image_length, 1);
+  if (ctx->image == NULL) {
+    fprintf(stderr,
+        "failed to allocate memory for image (%zu bytes)\n", ctx->image_length);
+  }
+
   fseek(fp, 0, SEEK_SET);
-  if (fread(ctx->image, ctx->image_length, 1, fp) != 1) {
-    fprintf(stderr, "fread failed while reading whole of the image\n");
+  if (fread(ctx->image, ctx->header_length, 1, fp) != 1) {
+    fprintf(stderr, "fread failed while reading headers\n");
     return false;
   }
   return true;
@@ -86,12 +103,14 @@ static bool readpe_context_copy_image_on_memory_(
 static bool readpe_context_find_addresses_(readpe_context_t* ctx) {
   assert(ctx != NULL);
 
-  const uint8_t* image_end = ctx->image + ctx->image_length;
+  const uint8_t* image_end  = ctx->image + ctx->image_length;
+  const uint8_t* header_end = ctx->image + ctx->header_length;
+  assert(header_end <= image_end);
 
   /* ---- dos header ---- */
   ctx->dos_header = (pe_dos_header_t*) ctx->image;
 
-  if (ctx->image_length < PE_DOS_HEADER_SIZE) {
+  if (ctx->header_length < PE_DOS_HEADER_SIZE) {
     fprintf(stderr, "invalid dos header: ends unexpectedly");
     return false;
   }
@@ -101,7 +120,7 @@ static bool readpe_context_find_addresses_(readpe_context_t* ctx) {
   ctx->dos_stub_length = ctx->dos_header->e_lfanew - PE_DOS_HEADER_SIZE;
 
   if (ctx->dos_header->e_lfanew < PE_DOS_HEADER_SIZE ||
-      (uintptr_t) ctx->dos_header->e_lfanew > ctx->image_length) {
+      (size_t) ctx->dos_header->e_lfanew > ctx->header_length) {
     fprintf(stderr, "invalid dos stub: ends unexpectedly\n");
     return false;
   }
@@ -109,22 +128,20 @@ static bool readpe_context_find_addresses_(readpe_context_t* ctx) {
   /* ---- nt header ---- */
   ctx->nt_header = (pe_nt_header_t*) (ctx->image + ctx->dos_header->e_lfanew);
 
-  if ((uint8_t*) &ctx->nt_header->file > image_end) {
+  if ((uint8_t*) &ctx->nt_header->file > header_end) {
     fprintf(stderr, "invalid image signature: ends unexpectedly\n");
     return false;
   }
-  if ((uint8_t*) &ctx->nt_header->optional > image_end) {
+  if ((uint8_t*) &ctx->nt_header->optional > header_end) {
     fprintf(stderr, "invalid image file header: ends unexpectedly\n");
     return false;
   }
 
-  const uint8_t* image_optional_header_end;
+  const uint8_t* image_optional_header_end = header_end + 1;
   if (ctx->_64bit) {
     const uint8_t* number_of_rva_and_sizes_end =
         (uint8_t*) (&ctx->nt_header->optional._64bit.number_of_rva_and_sizes+1);
-    if (number_of_rva_and_sizes_end > image_end) {
-      image_optional_header_end = image_end + 1;
-    } else {
+    if (number_of_rva_and_sizes_end <= header_end) {
       image_optional_header_end =
           (uint8_t*) &ctx->nt_header->optional._64bit.data_directory +
           ctx->nt_header->optional._64bit.number_of_rva_and_sizes*
@@ -133,16 +150,14 @@ static bool readpe_context_find_addresses_(readpe_context_t* ctx) {
   } else {
     const uint8_t* number_of_rva_and_sizes_end =
         (uint8_t*) (&ctx->nt_header->optional._32bit.number_of_rva_and_sizes+1);
-    if (number_of_rva_and_sizes_end > image_end) {
-      image_optional_header_end = image_end + 1;
-    } else {
+    if (number_of_rva_and_sizes_end <= image_end) {
       image_optional_header_end =
           (uint8_t*) &ctx->nt_header->optional._32bit.data_directory +
           ctx->nt_header->optional._32bit.number_of_rva_and_sizes*
           PE_IMAGE_DATA_DIRECTORY_SIZE;
     }
   }
-  if (image_optional_header_end > image_end) {
+  if (image_optional_header_end > header_end) {
     fprintf(stderr, "invalid image optional header: ends unexpectedly\n");
     return false;
   }
@@ -157,10 +172,38 @@ static bool readpe_context_find_addresses_(readpe_context_t* ctx) {
 
   if ((uint8_t*) ctx->sections +
         ctx->nt_header->file.number_of_sections*PE_IMAGE_SECTION_HEADER_SIZE >
-        image_end) {
+        header_end) {
     fprintf(stderr, "invalid section table: ends unexpectedly\n");
     return false;
   }
+  return true;
+}
+
+static bool readpe_context_copy_sections_on_memory_(
+    readpe_context_t* ctx, FILE* fp) {
+  assert(ctx != NULL);
+  assert(fp  != NULL);
+
+  for (size_t i = 0; i < ctx->nt_header->file.number_of_sections; ++i) {
+    const pe_image_section_header_t* s = &ctx->sections[i];
+    if (s->size_of_raw_data == 0) continue;
+
+    uint8_t* ptr = ctx->image + s->virtual_address;
+    if (ptr + s->virtual_size > ctx->image) {
+      fprintf(stderr, "invalid section '%.*s': larger than image size\n",
+          PE_IMAGE_SECTION_NAME_SIZE, s->name);
+      return false;
+    }
+
+    fseek(fp, s->pointer_to_raw_data, SEEK_SET);
+    if (fread(ptr, s->size_of_raw_data, 1, fp) != 1) {
+      fprintf(stderr,
+          "fread failed while reading section: '%.*s'\n",
+          PE_IMAGE_SECTION_NAME_SIZE, s->name);
+      return false;
+    }
+  }
+
   return true;
 }
 
@@ -177,10 +220,13 @@ bool readpe_context_initialize(readpe_context_t* ctx, const char* filename) {
     fprintf(stderr, "fopen failed: %s\n", filename);
     goto FINALIZE;
   }
-  if (!readpe_context_copy_image_on_memory_(ctx, fp)) {
+  if (!readpe_context_copy_headers_on_memory_(ctx, fp)) {
     goto FINALIZE;
   }
   if (!readpe_context_find_addresses_(ctx)) {
+    goto FINALIZE;
+  }
+  if (!readpe_context_copy_sections_on_memory_(ctx, fp)) {
     goto FINALIZE;
   }
 
