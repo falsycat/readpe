@@ -256,3 +256,17 @@ typedef struct pe_image_section_header_t {
 # define PE_IMAGE_SECTION_MEMORY_READ                 0x40000000
 # define PE_IMAGE_SECTION_MEMORY_WRITE                0x80000000
 } pe_image_section_header_t;
+
+typedef struct pe_image_export_directory_t {
+  uint32_t characteristics;
+  uint32_t time_date_stamp;
+  uint16_t major_version;
+  uint16_t minor_version;
+  uint32_t name;
+  uint32_t base;
+  uint32_t number_of_functions;
+  uint32_t number_of_names;
+  uint32_t address_of_functions;
+  uint32_t address_of_names;
+  uint32_t address_of_name_ordinals;
+} pe_image_export_directory_t;
