@@ -14,17 +14,20 @@ typedef struct readpe_context_t {
 
   uint8_t* image;
 
-  pe_dos_header_t* dos_header;
+  const pe_dos_header_t* dos_header;
 
-  uint8_t* dos_stub;
-  size_t   dos_stub_length;
+  const uint8_t* dos_stub;
+  size_t         dos_stub_length;
 
-  pe_nt_header_t* nt_header;
+  const pe_nt_header_t* nt_header;
 
-  pe_image_data_directory_t* data_directory;
-  size_t                     data_directory_length;
+  const pe_image_data_directory_t* data_directory;
+  size_t                           data_directory_length;
 
-  pe_image_section_header_t* sections;
+  const pe_image_section_header_t* sections;
+
+  const pe_image_export_directory_t* exports;
+  size_t exports_section_length;
 } readpe_context_t;
 
 bool

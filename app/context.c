@@ -219,6 +219,87 @@ static bool readpe_context_copy_sections_on_memory_(
   return true;
 }
 
+static bool readpe_context_find_export_table_(readpe_context_t* ctx) {
+  assert(ctx != NULL);
+
+  ctx->exports                = NULL;
+  ctx->exports_section_length = 0;
+
+  if (ctx->data_directory_length <= PE_IMAGE_DIRECTORY_ENTRY_EXPORT) {
+    return true;
+  }
+
+  const pe_image_data_directory_t* dir =
+      &ctx->data_directory[PE_IMAGE_DIRECTORY_ENTRY_EXPORT];
+  if (dir->virtual_address == 0 || dir->size == 0) return true;
+
+  ctx->exports = (typeof(ctx->exports)) (ctx->image + dir->virtual_address);
+  ctx->exports_section_length = dir->size;
+
+  if ((uint8_t*) ctx->exports + PE_IMAGE_EXPORT_DIRECTORY_SIZE >=
+        ctx->image + ctx->image_length) {
+    fprintf(stderr, "invalid export table: ends unexpectedly\n");
+    return false;
+  }
+
+  if (!readpe_context_validate_string_(ctx, ctx->exports->name)) {
+    fprintf(stderr, "invalid export table: name refers out of image\n");
+    return false;
+  }
+
+  if (ctx->exports->address_of_functions +
+        ctx->exports->number_of_functions*sizeof(uint32_t) >=
+        ctx->image_length) {
+    fprintf(stderr,
+        "invalid export table: "
+        "address_of_functions refers out of image\n");
+    return false;
+  }
+  if (ctx->exports->address_of_names +
+        ctx->exports->number_of_names*sizeof(uint32_t) >= ctx->image_length) {
+    fprintf(stderr,
+        "invalid export table: "
+        "address_of_names refers out of image\n");
+    return false;
+  }
+  if (ctx->exports->address_of_name_ordinals +
+        ctx->exports->number_of_names*sizeof(uint16_t) >= ctx->image_length) {
+    fprintf(stderr,
+        "invalid export table: "
+        "address_of_name_ordinals refers out of image\n");
+    return false;
+  }
+
+  const uint32_t* funcs =
+      (uint32_t*) (ctx->image + ctx->exports->address_of_functions);
+  for (size_t i = 0; i < ctx->exports->number_of_functions; ++i) {
+    if (funcs[i] >= ctx->image_length) {
+      fprintf(stderr,
+          "invalid export table: one of the functions is out of image\n");
+      return false;
+    }
+    if (dir->virtual_address <=
+          funcs[i] && funcs[i] < dir->virtual_address + dir->size &&
+        !readpe_context_validate_string_(ctx, funcs[i])) {
+      fprintf(stderr,
+          "invalid export table: "
+          "one of the forwarded function names ends unexpectedly\n");
+      return false;
+    }
+  }
+
+  const uint32_t* names =
+      (uint32_t*) (ctx->image + ctx->exports->address_of_names);
+  for (size_t i = 0; i < ctx->exports->number_of_names; ++i) {
+    if (!readpe_context_validate_string_(ctx, names[i])) {
+      fprintf(stderr,
+          "invalid export table: one of the names ends unexpectedly\n");
+      return false;
+    }
+  }
+  return true;
+}
+
 bool readpe_context_initialize(readpe_context_t* ctx, const char* filename) {
   assert(ctx      != NULL);
   assert(filename != NULL);
@@ -241,6 +322,9 @@ bool readpe_context_initialize(readpe_context_t* ctx, const char* filename) {
   if (!readpe_context_copy_sections_on_memory_(ctx, fp)) {
     goto FINALIZE;
   }
+  if (!readpe_context_find_export_table_(ctx)) {
+    goto FINALIZE;
+  }
 
   success = true;
 FINALIZE:
@@ -257,66 +341,4 @@ void readpe_context_deinitialize(readpe_context_t* ctx) {
   if (ctx == NULL) return;
 
   if (ctx->image != NULL) free(ctx->image);
-}
-
-bool readpe_context_get_export_table(
-    const readpe_context_t*             ctx,
-    const pe_image_export_directory_t** ptr) {
-  assert(ctx != NULL);
-  assert(ptr != NULL);
-
-  *ptr = NULL;
-
-  if (ctx->data_directory_length <= PE_IMAGE_DIRECTORY_ENTRY_EXPORT) {
-    return true;
-  }
-
-  const pe_image_data_directory_t* dir =
-      &ctx->data_directory[PE_IMAGE_DIRECTORY_ENTRY_EXPORT];
-  if (dir->virtual_address == 0 || dir->size == 0) return true;
-
-  *ptr = (typeof(*ptr)) (ctx->image + dir->virtual_address);
-
-  if ((uint8_t*) *ptr + PE_IMAGE_EXPORT_DIRECTORY_SIZE >=
-        ctx->image + ctx->image_length) {
-    fprintf(stderr, "invalid export table: ends unexpectedly\n");
-    return false;
-  }
-
-  if (!readpe_context_validate_string_(ctx, (*ptr)->name)) {
-    fprintf(stderr, "invalid export table: name refers out of image\n");
-    return false;
-  }
-
-  if ((*ptr)->address_of_functions +
-        (*ptr)->number_of_functions*sizeof(uint32_t) >= ctx->image_length) {
-    fprintf(stderr,
-        "invalid export table: "
-        "address_of_functions refers out of image\n");
-    return false;
-  }
-  if ((*ptr)->address_of_names +
-        (*ptr)->number_of_names*sizeof(uint32_t) >= ctx->image_length) {
-    fprintf(stderr,
-        "invalid export table: "
-        "address_of_names refers out of image\n");
-    return false;
-  }
-  if ((*ptr)->address_of_name_ordinals +
-        (*ptr)->number_of_names*sizeof(uint16_t) >= ctx->image_length) {
-    fprintf(stderr,
-        "invalid export table: "
-        "address_of_name_ordinals refers out of image\n");
-    return false;
-  }
-
-  const uint32_t* names = (uint32_t*) ((*ptr)->address_of_names + ctx->image);
-  for (size_t i = 0; i < (*ptr)->number_of_names; ++i) {
-    if (!readpe_context_validate_string_(ctx, names[i])) {
-      fprintf(stderr,
-          "invalid export table: one of the names ends unexpectedly\n");
-      return false;
-    }
-  }
-  return true;
 }

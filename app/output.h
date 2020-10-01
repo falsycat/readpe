@@ -29,6 +29,8 @@ readpe_output_section_table(
 
 void
 readpe_output_export_table(
-    const pe_image_export_directory_t* table,  /* NULLABLE */
-    const uint8_t*                     img
+    const uint8_t*                     img,
+    const pe_image_export_directory_t* table,
+        /* NULLABLE, a pointer to an entity in the img */
+    size_t                             section_length
 );

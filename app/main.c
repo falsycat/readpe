@@ -39,11 +39,8 @@ int main(int argc, char** argv) {
     readpe_output_section_table(ctx.sections, ctx.nt_header->file.number_of_sections);
   }
   if (args.export_table) {
-    const pe_image_export_directory_t* dir;
-    if (!readpe_context_get_export_table(&ctx, &dir)) {
-      return EXIT_FAILURE;
-    }
-    readpe_output_export_table(dir, ctx.image);
+    readpe_output_export_table(
+        ctx.image, ctx.exports, ctx.exports_section_length);
   }
 
   readpe_context_deinitialize(&ctx);

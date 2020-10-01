@@ -601,7 +601,9 @@ void readpe_output_section_table(
 }
 
 void readpe_output_export_table(
-    const pe_image_export_directory_t* table, const uint8_t* img) {
+    const uint8_t*                     img,
+    const pe_image_export_directory_t* table,
+    size_t                             section_length) {
   assert(img != NULL);
 
   readpe_output_begin_group_("export table");
@@ -611,9 +613,14 @@ void readpe_output_export_table(
     return;
   }
 
+  assert((uint8_t*) table >= img);
+  assert(section_length >= PE_IMAGE_EXPORT_DIRECTORY_SIZE);
+
   const uint32_t* addrs = (uint32_t*) (img + table->address_of_functions);
   const uint32_t* names = (uint32_t*) (img + table->address_of_names);
   const uint16_t* ordis = (uint16_t*) (img + table->address_of_name_ordinals);
+
+  const uintptr_t table_base = (uint8_t*) table - img;
 
   size_t longest = 0;
   for (size_t i = 0; i < table->number_of_names; ++i) {
@@ -632,13 +639,23 @@ void readpe_output_export_table(
         break;
       }
     }
-    /* TODO(catfoot): check if forwarded */
-    printfln(
-        "%-*s@%-10"PRId32" 0x%08"PRIX32,
-        (int) longest,
-        name,
-        ordinal,
-        addrs[i]);
+
+    if (table_base <= addrs[i] && addrs[i] < table_base + section_length) {
+      printfln(
+          "%-*s@%-10"PRId32" 0x%08"PRIX32" (forwarded to '%s')",
+          (int) longest,
+          name,
+          ordinal,
+          addrs[i],
+          (char*) &img[addrs[i]]);
+    } else {
+      printfln(
+          "%-*s@%-10"PRId32" 0x%08"PRIX32,
+          (int) longest,
+          name,
+          ordinal,
+          addrs[i]);
+    }
   }
 
   readpe_output_end_group_();
