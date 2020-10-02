@@ -272,3 +272,17 @@ typedef struct pe_image_export_directory_t {
   uint32_t address_of_names;
   uint32_t address_of_name_ordinals;
 } pe_image_export_directory_t;
+
+typedef struct pe_base_relocation_block_t {
+# define PE_BASE_RELOCATION_BLOCK_SIZE 8
+
+  uint32_t virtual_address;
+  uint32_t size_of_block;
+} pe_base_relocation_block_t;
+
+typedef struct pe_base_relocation_entry_t {
+# define PE_BASE_RELOCATION_ENTRY_SIZE 2
+
+  unsigned offset : 12;
+  unsigned type   : 4;
+} pe_base_relocation_entry_t;

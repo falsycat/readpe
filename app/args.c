@@ -42,9 +42,9 @@ static bool readpe_args_parse_by_parsarg_(readpe_args_t* args, parsarg_t* pa) {
       bool_(dos_stub,   "dos-stub");
       bool_(nt_header,  "nt-header");
 
-      bool_(export_table,  "export-table");
-      bool_(import_table,  "import-table");
       bool_(section_table, "section-table");
+      bool_(export_table,  "export-table");
+      bool_(relocation_table,  "relocation-table");
 
 #     undef bool_
 #     undef streq_
@@ -73,9 +73,9 @@ static void readpe_args_normalize_(readpe_args_t* args) {
   args->dos_stub   |= args->all;
   args->nt_header  |= args->all;
 
-  args->export_table  |= args->all;
-  args->import_table  |= args->all;
-  args->section_table |= args->all;
+  args->section_table    |= args->all;
+  args->export_table     |= args->all;
+  args->relocation_table |= args->all;
 }
 
 static bool readpe_args_validate_(const readpe_args_t* args) {

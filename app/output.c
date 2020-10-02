@@ -660,3 +660,47 @@ void readpe_output_export_table(
 
   readpe_output_end_group_();
 }
+
+void readpe_output_relocation_table(
+    const uint8_t* img, const uint8_t* table, size_t length) {
+  assert(img != NULL);
+
+  readpe_output_begin_group_("relocation table");
+
+  if (table == NULL) {
+    printfln("%s", "no relocation table found");
+    return;
+  }
+
+  size_t relocs = 0;
+
+  const uint8_t* itr = table;
+  const uint8_t* end = itr + length;
+  for (size_t cnt = 0; itr < end; ++cnt) {
+    const pe_base_relocation_block_t* block = (typeof(block)) itr;
+    itr += PE_BASE_RELOCATION_BLOCK_SIZE;
+
+    printfln("block %zu:", cnt);
+    printfln("  virtual address: 0x%08"PRIX32,
+        block->virtual_address);
+    printfln("  block size     : 0x%08"PRIX32" = %"PRIu32,
+        block->size_of_block, block->size_of_block);
+
+    const size_t cnt = (block->size_of_block - PE_BASE_RELOCATION_BLOCK_SIZE) /
+        PE_BASE_RELOCATION_ENTRY_SIZE;
+    printfln("  entries        : %zu found", cnt);
+
+    for (size_t i = 0; i < cnt; ++i) {
+      const pe_base_relocation_entry_t* entry = (typeof(entry)) itr;
+      itr += PE_BASE_RELOCATION_ENTRY_SIZE;
+
+      printfln("    0x%08"PRIX32": type=%2"PRIu8,
+          entry->offset + block->virtual_address,
+          entry->type);
+    }
+    relocs += cnt;
+  }
+  printfln("total %zu addresses to be relocated found", relocs);
+
+  readpe_output_end_group_();
+}

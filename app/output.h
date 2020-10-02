@@ -34,3 +34,10 @@ readpe_output_export_table(
         /* NULLABLE, a pointer to an entity in the img */
     size_t                             section_length
 );
+
+void
+readpe_output_relocation_table(
+    const uint8_t* img,
+    const uint8_t* table,
+    size_t         length
+);

@@ -9,8 +9,9 @@
 typedef struct readpe_context_t {
   bool _64bit;
 
-  size_t image_length;
-  size_t header_length;
+  size_t    image_length;
+  uintptr_t image_base;
+  size_t    header_length;
 
   uint8_t* image;
 
@@ -28,6 +29,9 @@ typedef struct readpe_context_t {
 
   const pe_image_export_directory_t* exports;
   size_t exports_section_length;
+
+  const uint8_t* relocations;
+  size_t         relocations_length;
 } readpe_context_t;
 
 bool
@@ -39,10 +43,4 @@ readpe_context_initialize(
 void
 readpe_context_deinitialize(
     readpe_context_t* ctx
-);
-
-bool
-readpe_context_get_export_table(
-    const readpe_context_t*             ctx,
-    const pe_image_export_directory_t** table
 );

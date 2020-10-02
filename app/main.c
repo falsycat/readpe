@@ -42,6 +42,10 @@ int main(int argc, char** argv) {
     readpe_output_export_table(
         ctx.image, ctx.exports, ctx.exports_section_length);
   }
+  if (args.relocation_table) {
+    readpe_output_relocation_table(
+        ctx.image, ctx.relocations, ctx.relocations_length);
+  }
 
   readpe_context_deinitialize(&ctx);
   return EXIT_SUCCESS;

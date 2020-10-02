@@ -78,12 +78,14 @@ static bool readpe_context_copy_headers_on_memory_(
 
   switch (nt_header.file.machine) {
   case PE_IMAGE_FILE_MACHINE_I386:
+    ctx->image_base    = nt_header.optional._32bit.image_base;
     ctx->image_length  = nt_header.optional._32bit.size_of_image;
     ctx->header_length = nt_header.optional._32bit.size_of_headers;
     break;
   case PE_IMAGE_FILE_MACHINE_AMD64:
   case PE_IMAGE_FILE_MACHINE_IA64:
     ctx->_64bit = true;
+    ctx->image_base    = nt_header.optional._64bit.image_base;
     ctx->image_length  = nt_header.optional._64bit.size_of_image;
     ctx->header_length = nt_header.optional._64bit.size_of_headers;
     break;
@@ -300,6 +302,55 @@ static bool readpe_context_find_export_table_(readpe_context_t* ctx) {
   return true;
 }
 
+static bool readpe_context_find_relocation_table_(readpe_context_t* ctx) {
+  assert(ctx != NULL);
+
+  ctx->relocations        = NULL;
+  ctx->relocations_length = 0;
+
+  if (ctx->data_directory_length <= PE_IMAGE_DIRECTORY_ENTRY_BASERELOC) {
+    return true;
+  }
+
+  const pe_image_data_directory_t* dir =
+      &ctx->data_directory[PE_IMAGE_DIRECTORY_ENTRY_BASERELOC];
+  if (dir->virtual_address == 0 || dir->size == 0) return true;
+
+  ctx->relocations        = ctx->image + dir->virtual_address;
+  ctx->relocations_length = dir->size;
+
+  const uint8_t* itr = ctx->relocations;
+  const uint8_t* end = itr + ctx->relocations_length;
+  while (itr < end) {
+    const pe_base_relocation_block_t* block = (typeof(block)) itr;
+    itr += PE_BASE_RELOCATION_BLOCK_SIZE;
+
+    if (block->size_of_block < PE_BASE_RELOCATION_BLOCK_SIZE) {
+      fprintf(stderr,
+          "invalid relocation table: one of the blocks ends unexpectedly\n");
+      return false;
+    }
+
+    const size_t cnt = (block->size_of_block - PE_BASE_RELOCATION_BLOCK_SIZE) /
+        PE_BASE_RELOCATION_ENTRY_SIZE;
+    for (size_t i = 0; i < cnt; ++i) {
+      const pe_base_relocation_entry_t* entry = (typeof(entry)) itr;
+      itr += PE_BASE_RELOCATION_ENTRY_SIZE;
+
+      if (entry->type == 0) continue;
+      if (block->virtual_address + entry->offset + sizeof(uint32_t) >
+            ctx->image_length) {
+        fprintf(stderr,
+            "invalid relocation table: "
+            "one of the addresses refers out of image\n");
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 bool readpe_context_initialize(readpe_context_t* ctx, const char* filename) {
   assert(ctx      != NULL);
   assert(filename != NULL);
@@ -323,6 +374,9 @@ bool readpe_context_initialize(readpe_context_t* ctx, const char* filename) {
     goto FINALIZE;
   }
   if (!readpe_context_find_export_table_(ctx)) {
+    goto FINALIZE;
+  }
+  if (!readpe_context_find_relocation_table_(ctx)) {
     goto FINALIZE;
   }
 
