@@ -3,6 +3,9 @@
 #include <assert.h>
 #include <ctype.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -242,7 +245,7 @@ static void readpe_output_data_directories_(
 
     printfln("    virtual address: 0x%08"PRIX32" RVA",
         dirs[i].virtual_address);
-    printfln("    size           : 0x%08"PRIX32" = %"PRId32,
+    printfln("    size           : 0x%08"PRIX32" = %"PRIu32,
         dirs[i].size, dirs[i].size);
   }
 }
@@ -330,7 +333,7 @@ static void readpe_output_optional_header32_(
   printfln("size of heap commit       : 0x%08"PRIX32" = %"PRIu32,
       header->size_of_heap_commit, header->size_of_heap_commit);
 
-  printfln("number of RVA and sizes   : %"PRId32,
+  printfln("number of RVA and sizes   : %"PRIu32,
       header->number_of_rva_and_sizes);
 
   readpe_output_data_directories_(
@@ -420,7 +423,7 @@ static void readpe_output_optional_header64_(
   printfln("size of heap commit       : 0x%016"PRIX64" = %"PRIu64,
       header->size_of_heap_commit, header->size_of_heap_commit);
 
-  printfln("number of RVA and sizes   : %"PRId32,
+  printfln("number of RVA and sizes   : %"PRIu32,
       header->number_of_rva_and_sizes);
 
   readpe_output_data_directories_(
@@ -655,6 +658,74 @@ void readpe_output_export_table(
           name,
           ordinal,
           addrs[i]);
+    }
+  }
+
+  readpe_output_end_group_();
+}
+
+void readpe_output_import_table(
+    const uint8_t*                      img,
+    const pe_image_import_descriptor_t* table,
+    bool                                _64bit) {
+  assert(img != NULL);
+
+  readpe_output_begin_group_("import table");
+
+  if (table == NULL) {
+    printfln("%s", "no import table found");
+    return;
+  }
+
+  const pe_image_import_descriptor_t* itr = table;
+  for (size_t i = 0; itr->characteristics != 0; ++i, ++itr) {
+    printfln("%zu:", i);
+    printfln("  name                : %s",
+        &img[itr->name]);
+    printfln("  original first thunk: 0x%08"PRIX32,
+        itr->original_first_thunk);
+    printfln("  first thunk         : 0x%08"PRIX32,
+        itr->first_thunk);
+    printfln("  forwarder chain     : 0x%08"PRIX32,
+        itr->forwarder_chain);
+
+    if (itr->time_date_stamp == 0) {
+      printfln("  time date stamp     : %d", 0);
+    } else {
+      printfln("  time date stamp     : %s",
+          readpe_output_stringify_time_(itr->time_date_stamp));
+    }
+
+    printfln("%s", "  INT                 :");
+
+    const uint8_t* int_itr = img + itr->original_first_thunk;
+    for (;;) {
+      uintmax_t value   = 0;
+      bool      ordinal = false;
+
+      if (_64bit) {
+        value = ((pe64_image_thunk_data_t*) int_itr)->address_of_data;
+        int_itr += PE64_IMAGE_THUNK_DATA_SIZE;
+        if (value == 0) break;
+
+        ordinal = value & PE64_IMAGE_ORDINAL_FLAG;
+        if (ordinal) value &= PE64_IMAGE_ORDINAL;
+
+      } else {
+        value = ((pe32_image_thunk_data_t*) int_itr)->address_of_data;
+        int_itr += PE32_IMAGE_THUNK_DATA_SIZE;
+        if (value == 0) break;
+
+        ordinal = value & PE32_IMAGE_ORDINAL_FLAG;
+        if (ordinal) value &= PE32_IMAGE_ORDINAL;
+      }
+
+      if (ordinal) {
+        printfln("    @%"PRIuMAX":", value);
+      } else {
+        const pe_image_import_by_name_t* ibn = (typeof(ibn)) (img + value);
+        printfln("    %8"PRIu32": %s", ibn->hint, ibn->name);
+      }
     }
   }
 

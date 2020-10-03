@@ -273,6 +273,47 @@ typedef struct pe_image_export_directory_t {
   uint32_t address_of_name_ordinals;
 } pe_image_export_directory_t;
 
+typedef struct pe_image_import_descriptor_t {
+# define PE_IMAGE_IMPORT_DESCRIPTOR_SIZE 20
+
+  union {
+    uint32_t characteristics;
+    uint32_t original_first_thunk;
+  };
+  uint32_t time_date_stamp;
+
+  uint32_t forwarder_chain;
+  uint32_t name;
+  uint32_t first_thunk;
+} pe_image_import_descriptor_t;
+
+typedef union pe32_image_thunk_data_t {
+# define PE32_IMAGE_THUNK_DATA_SIZE 4
+# define PE32_IMAGE_ORDINAL_FLAG    0x80000000
+# define PE32_IMAGE_ORDINAL         0xffff
+
+  uint32_t forwarder_string;
+  uint32_t function;
+  uint32_t ordinal;
+  uint32_t address_of_data;
+} pe32_image_thunk_data_t;
+
+typedef union pe64_image_thunk_data_t {
+# define PE64_IMAGE_THUNK_DATA_SIZE 8
+# define PE64_IMAGE_ORDINAL_FLAG    0x8000000000000000ULL
+# define PE64_IMAGE_ORDINAL         0xFFFFull
+
+  uint64_t forwarder_string;
+  uint64_t function;
+  uint64_t ordinal;
+  uint64_t address_of_data;
+} pe64_image_thunk_data_t;
+
+typedef struct pe_image_import_by_name_t {
+  uint16_t hint;
+  uint8_t  name[1];
+} pe_image_import_by_name_t;
+
 typedef struct pe_base_relocation_block_t {
 # define PE_BASE_RELOCATION_BLOCK_SIZE 8
 

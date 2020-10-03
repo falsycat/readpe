@@ -27,8 +27,11 @@ typedef struct readpe_context_t {
 
   const pe_image_section_header_t* sections;
 
-  const pe_image_export_directory_t* exports;
-  size_t exports_section_length;
+  const pe_image_export_directory_t* export_;
+  size_t export_section_length;
+
+  const pe_image_import_descriptor_t* imports;
+  size_t imports_length;
 
   const uint8_t* relocations;
   size_t         relocations_length;

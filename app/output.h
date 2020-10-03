@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -36,8 +37,15 @@ readpe_output_export_table(
 );
 
 void
+readpe_output_import_table(
+    const uint8_t*                      img,
+    const pe_image_import_descriptor_t* table,  /* NULLABLE */
+    bool                                _64bit
+);
+
+void
 readpe_output_relocation_table(
     const uint8_t* img,
-    const uint8_t* table,
+    const uint8_t* table,  /* NULLABLE */
     size_t         length
 );

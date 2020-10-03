@@ -44,6 +44,7 @@ static bool readpe_args_parse_by_parsarg_(readpe_args_t* args, parsarg_t* pa) {
 
       bool_(section_table, "section-table");
       bool_(export_table,  "export-table");
+      bool_(import_table,  "import-table");
       bool_(relocation_table,  "relocation-table");
 
 #     undef bool_

@@ -14,6 +14,7 @@ typedef struct readpe_args_t {
 
   bool section_table;
   bool export_table;
+  bool import_table;
   bool relocation_table;
 } readpe_args_t;
 
