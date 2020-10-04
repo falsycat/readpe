@@ -613,7 +613,7 @@ void readpe_output_export_table(
 
   if (table == NULL) {
     printfln("%s", "no export table found");
-    return;
+    goto FINALIZE;
   }
 
   assert((uint8_t*) table >= img);
@@ -661,6 +661,7 @@ void readpe_output_export_table(
     }
   }
 
+FINALIZE:
   readpe_output_end_group_();
 }
 
@@ -674,7 +675,7 @@ void readpe_output_import_table(
 
   if (table == NULL) {
     printfln("%s", "no import table found");
-    return;
+    goto FINALIZE;
   }
 
   const pe_image_import_descriptor_t* itr = table;
@@ -729,6 +730,7 @@ void readpe_output_import_table(
     }
   }
 
+FINALIZE:
   readpe_output_end_group_();
 }
 
@@ -740,7 +742,7 @@ void readpe_output_relocation_table(
 
   if (table == NULL) {
     printfln("%s", "no relocation table found");
-    return;
+    goto FINALIZE;
   }
 
   size_t relocs = 0;
@@ -773,5 +775,6 @@ void readpe_output_relocation_table(
   }
   printfln("total %zu addresses to be relocated found", relocs);
 
+FINALIZE:
   readpe_output_end_group_();
 }

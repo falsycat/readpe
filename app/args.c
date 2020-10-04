@@ -76,6 +76,7 @@ static void readpe_args_normalize_(readpe_args_t* args) {
 
   args->section_table    |= args->all;
   args->export_table     |= args->all;
+  args->import_table     |= args->all;
   args->relocation_table |= args->all;
 }
 
