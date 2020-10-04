@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 
-project(sharedmem-c C)
+project(readpe C)
 
 include(CTest)
 
