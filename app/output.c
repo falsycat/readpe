@@ -722,7 +722,7 @@ void readpe_output_import_table(
       }
 
       if (ordinal) {
-        printfln("    @%"PRIuMAX":", value);
+        printfln("    @%7"PRIuMAX": [anonymous function]", value);
       } else {
         const pe_image_import_by_name_t* ibn = (typeof(ibn)) (img + value);
         printfln("    %8"PRIu32": %s", ibn->hint, ibn->name);
@@ -734,10 +734,7 @@ FINALIZE:
   readpe_output_end_group_();
 }
 
-void readpe_output_relocation_table(
-    const uint8_t* img, const uint8_t* table, size_t length) {
-  assert(img != NULL);
-
+void readpe_output_relocation_table(const uint8_t* table, size_t length) {
   readpe_output_begin_group_("relocation table");
 
   if (table == NULL) {

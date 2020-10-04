@@ -45,7 +45,6 @@ readpe_output_import_table(
 
 void
 readpe_output_relocation_table(
-    const uint8_t* img,
     const uint8_t* table,  /* NULLABLE */
     size_t         length
 );

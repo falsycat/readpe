@@ -46,8 +46,7 @@ int main(int argc, char** argv) {
     readpe_output_import_table(ctx.image, ctx.imports, ctx._64bit);
   }
   if (args.relocation_table) {
-    readpe_output_relocation_table(
-        ctx.image, ctx.relocations, ctx.relocations_length);
+    readpe_output_relocation_table(ctx.relocations, ctx.relocations_length);
   }
 
   readpe_context_deinitialize(&ctx);
