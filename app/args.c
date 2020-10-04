@@ -87,7 +87,15 @@ static bool readpe_args_validate_(const readpe_args_t* args) {
 }
 
 void readpe_args_print_help(void) {
-  printf("readpe <exe file> [options]\n");
+  printf("usage: readpe <exe file> [options]\n");
+  printf("  options:\n");
+  printf("    --all\n");
+  printf("    --dos-header\n");
+  printf("    --dos-stub\n");
+  printf("    --nt-header\n");
+  printf("    --section-table\n");
+  printf("    --export-table\n");
+  printf("    --relocation-table\n");
 }
 
 bool readpe_args_parse(readpe_args_t* args, int argc, const char* const* argv) {
