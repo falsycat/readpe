@@ -5,5 +5,5 @@ add_executable(readpe
     output.c
 )
 target_link_libraries(readpe
-    parsarg-c
+    parsarg
 )

@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "thirdparty/parsarg-c/parsarg.h"
+#include "thirdparty/parsarg/parsarg.h"
 
 static bool readpe_args_parse_by_parsarg_(readpe_args_t* args, parsarg_t* pa) {
   assert(args != NULL);

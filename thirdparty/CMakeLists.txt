@@ -1,1 +1,1 @@
-add_subdirectory(parsarg-c)
+add_subdirectory(parsarg)
