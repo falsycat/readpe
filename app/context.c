@@ -204,16 +204,17 @@ static bool readpe_context_copy_sections_on_memory_(
 
     uint8_t* ptr = ctx->image + s->virtual_address;
     if (ptr + s->misc.virtual_size >= ctx->image + ctx->image_length) {
-      fprintf(stderr, "invalid section '%.*s': larger than image size\n",
-          PE_IMAGE_SECTION_NAME_SIZE, s->name);
+      fprintf(stderr,
+          "invalid section '%.*s' (index=%zu): larger than image size\n",
+          PE_IMAGE_SECTION_NAME_SIZE, s->name, i);
       return false;
     }
 
     fseek(fp, s->pointer_to_raw_data, SEEK_SET);
     if (fread(ptr, s->size_of_raw_data, 1, fp) != 1) {
       fprintf(stderr,
-          "fread failed while reading section: '%.*s'\n",
-          PE_IMAGE_SECTION_NAME_SIZE, s->name);
+          "fread failed while reading section: '%.*s' (index=%zu)\n",
+          PE_IMAGE_SECTION_NAME_SIZE, s->name, i);
       return false;
     }
   }
@@ -274,15 +275,8 @@ static bool readpe_context_find_export_table_(readpe_context_t* ctx) {
   for (size_t i = 0; i < ctx->export_->number_of_functions; ++i) {
     if (funcs[i] >= ctx->image_length) {
       fprintf(stderr,
-          "invalid export table: one of the functions is out of image\n");
-      return false;
-    }
-    if (dir->virtual_address <= funcs[i] &&
-        funcs[i] < dir->virtual_address + dir->size &&
-        !readpe_context_validate_string_(ctx, funcs[i])) {
-      fprintf(stderr,
-          "invalid export table: "
-          "one of the forwarded function names ends unexpectedly\n");
+          "invalid export table: the function (index=%zu) is out of image\n",
+          i);
       return false;
     }
   }
@@ -292,7 +286,7 @@ static bool readpe_context_find_export_table_(readpe_context_t* ctx) {
   for (size_t i = 0; i < ctx->export_->number_of_names; ++i) {
     if (!readpe_context_validate_string_(ctx, names[i])) {
       fprintf(stderr,
-          "invalid export table: one of the names ends unexpectedly\n");
+          "invalid export table: the name (index=%zu) ends unexpectedly\n", i);
       return false;
     }
   }
@@ -329,28 +323,23 @@ static bool readpe_context_find_import_table_(readpe_context_t* ctx) {
   ctx->imports_length = end - ctx->imports;
 
   const pe_image_import_descriptor_t* itr = ctx->imports;
-  for (; itr < end; ++itr) {
-    if (itr->characteristics == 0) {
-      fprintf(stderr,
-          "invalid import descriptor: "
-          "not-last descriptor's characteristics is 0\n");
-      return false;
-    }
+  for (size_t i = 0; itr < end; ++i, ++itr) {
     if (itr->original_first_thunk >= ctx->image_length) {
       fprintf(stderr,
-          "invalid import descriptor: "
-          "original_first_thunk refers out of image\n");
+          "invalid import descriptor (index=%zu): "
+          "original_first_thunk refers out of image\n", i);
       return false;
     }
     if (!readpe_context_validate_string_(ctx, itr->name)) {
       fprintf(stderr,
-          "invalid import descriptor: name ends unexpectedly\n");
+          "invalid import descriptor (index=%zu): "
+          "the name ends unexpectedly\n", i);
       return false;
     }
     if (itr->first_thunk >= ctx->image_length) {
       fprintf(stderr,
-          "invalid import descriptor: "
-          "first_thunk refers out of image\n");
+          "invalid import descriptor (index=%zu): "
+          "first_thunk refers out of image\n", i);
       return false;
     }
 
@@ -379,13 +368,14 @@ static bool readpe_context_find_import_table_(readpe_context_t* ctx) {
       if (!ordinal && !readpe_context_validate_string_(
             ctx, value + offsetof(pe_image_import_by_name_t, name))) {
         fprintf(stderr,
-            "invalid import descriptor: one of the names ends unexpectedly\n");
+            "invalid import descriptor (index=%zu): "
+            "the name (index=%zu) ends unexpectedly\n", i, int_len);
         return false;
       }
     }
 
     const uint8_t* iat_itr = ctx->image + itr->first_thunk;
-    for (size_t i = 0; i < int_len; ++i) {
+    for (size_t j = 0; j < int_len; ++j) {
       uintmax_t value = 0;
       if (ctx->_64bit) {
         value = ((pe64_image_thunk_data_t*) iat_itr)->address_of_data;
@@ -396,7 +386,8 @@ static bool readpe_context_find_import_table_(readpe_context_t* ctx) {
       }
       if (value == 0) {
         fprintf(stderr,
-            "invalid import descriptor: IAT ends unexpectedly\n");
+            "invalid import descriptor (index=%zu): "
+            "IAT ends unexpectedly\n", i);
         return false;
       }
     }
@@ -420,19 +411,20 @@ static bool readpe_context_find_relocation_table_(readpe_context_t* ctx) {
 
   const uint8_t* itr = ctx->relocations;
   const uint8_t* end = itr + ctx->relocations_length;
-  while (itr < end) {
+  for (size_t i = 0; itr < end; ++i) {
     const pe_base_relocation_block_t* block = (typeof(block)) itr;
     itr += PE_BASE_RELOCATION_BLOCK_SIZE;
 
     if (block->size_of_block < PE_BASE_RELOCATION_BLOCK_SIZE) {
       fprintf(stderr,
-          "invalid relocation table: one of the blocks ends unexpectedly\n");
+          "invalid relocation table: "
+          "the block (index=%zu) ends unexpectedly\n", i);
       return false;
     }
 
     const size_t cnt = (block->size_of_block - PE_BASE_RELOCATION_BLOCK_SIZE) /
         PE_BASE_RELOCATION_ENTRY_SIZE;
-    for (size_t i = 0; i < cnt; ++i) {
+    for (size_t j = 0; j < cnt; ++j) {
       const pe_base_relocation_entry_t* entry = (typeof(entry)) itr;
       itr += PE_BASE_RELOCATION_ENTRY_SIZE;
 
@@ -440,8 +432,8 @@ static bool readpe_context_find_relocation_table_(readpe_context_t* ctx) {
       if (block->virtual_address + entry->offset + sizeof(uint32_t) >
             ctx->image_length) {
         fprintf(stderr,
-            "invalid relocation table: "
-            "one of the addresses refers out of image\n");
+            "invalid relocation table block (index=%zu): "
+            "the address (index=%zu) refers out of image\n", i, j);
         return false;
       }
     }
