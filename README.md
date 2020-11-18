@@ -21,4 +21,4 @@ readpe <exe file> [options]
 
 ## License
 
-public domain
+WTFPL
